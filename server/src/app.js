@@ -5,8 +5,11 @@ const disasterAlertRoutes = require('./routes/disasterAlert.routes');
 const shelterRoutes = require('./routes/shelter.routes');
 const weatherRoutes = require('./routes/weather.routes');
 const routeRoutes = require('./routes/route.routes');
+// const itemRoutes = require('./routes/item.routes');
+const localRiskRoutes = require('./routes/localRisk.routes');
 
 const app = express();
+
 
 // ── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors());
@@ -22,7 +25,8 @@ app.use('/api/disaster-alert', disasterAlertRoutes);
 app.use('/api/shelters', shelterRoutes);
 app.use('/api/weather-alert', weatherRoutes);
 app.use('/api/evacuation-route', routeRoutes);
-
+// app.use('/api/items', itemRoutes);
+app.use('/api/local-risk-profile',localRiskRoutes);
 
 // ── 404 fallback ────────────────────────────────────────────────────────────
 app.use((_req, res) => {

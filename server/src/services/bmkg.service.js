@@ -87,4 +87,15 @@ async function getAllAlerts() {
   return alerts;
 }
 
-module.exports = { getAllAlerts };
+async function getLatestEarthquake() {
+
+  const alerts = await getAllAlerts();
+
+  if (!alerts.length) {
+    return null;
+  }
+
+  return alerts[0];
+}
+
+module.exports = { getAllAlerts, getLatestEarthquake };
