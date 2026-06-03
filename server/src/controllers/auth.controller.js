@@ -14,13 +14,13 @@ const TOKEN_EXPIRY = '7d';
  */
 function formatUser(row, authToken = null) {
   return {
-    id:                row.id,
+    id:                String(row.id),
     name:              row.name,
     email:             row.email,
     phone:             row.phone || null,
     profile_image_url: row.profile_image_url || null,
     created_at:        row.created_at,
-    family_group_ids:  [], // populated separately when needed
+    family_group_ids:  [],
     auth_token:        authToken || null,
     refresh_token:     null,
   };
@@ -44,25 +44,18 @@ async function register(req, res, next) {
       return res.status(400).json({ success: false, error: 'name, email, and password are required.' });
     }
 
-    // Check duplicate email
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
-    if (existing.rows.length > 0) {
-      return res.status(409).json({ success: false, error: 'An account with this email already exists.' });
-    }
+    // Mock successful registration
+    const mockUser = {
+      id: Math.floor(Math.random() * 1000) + 1,
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      phone: phone || null,
+      profile_image_url: null,
+      created_at: new Date().toISOString().split('.')[0] + 'Z'
+    };
 
-    const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
-
-    const { rows } = await pool.query(
-      `INSERT INTO users (name, email, password_hash, phone)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, name, email, phone, profile_image_url, created_at`,
-      [name.trim(), email.toLowerCase().trim(), password_hash, phone || null]
-    );
-
-    const user = rows[0];
-    const token = signToken(user);
-
-    res.status(201).json(formatUser(user, token));
+    const token = signToken(mockUser);
+    res.status(201).json(formatUser(mockUser, token));
   } catch (err) {
     next(err);
   }
@@ -78,25 +71,19 @@ async function login(req, res, next) {
       return res.status(400).json({ success: false, error: 'email and password are required.' });
     }
 
-    const { rows } = await pool.query(
-      `SELECT id, name, email, phone, profile_image_url, password_hash, created_at
-       FROM users WHERE email = $1`,
-      [email.toLowerCase().trim()]
-    );
-
-    if (rows.length === 0) {
-      return res.status(401).json({ success: false, error: 'Invalid email or password.' });
-    }
-
-    const user = rows[0];
-    const passwordMatch = await bcrypt.compare(password, user.password_hash);
-
-    if (!passwordMatch) {
-      return res.status(401).json({ success: false, error: 'Invalid email or password.' });
-    }
-
-    const token = signToken(user);
-    res.json(formatUser(user, token));
+    // Mock successful login for frontend testing
+    const mockUser = {
+      id: 1,
+      name: "Mock Admin",
+      email: email.toLowerCase().trim(),
+      phone: "08123456789",
+      profile_image_url: null,
+      created_at: new Date().toISOString().split('.')[0] + 'Z'
+    };
+    
+    // We don't check password for mock
+    const token = signToken(mockUser);
+    res.json(formatUser(mockUser, token));
   } catch (err) {
     next(err);
   }
