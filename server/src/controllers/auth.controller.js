@@ -19,6 +19,8 @@ function formatUser(row, authToken = null) {
     email:             row.email,
     phone:             row.phone || null,
     profile_image_url: row.profile_image_url || null,
+    latitude:          row.latitude || null,
+    longitude:         row.longitude || null,
     created_at:        row.created_at,
     family_group_ids:  [],
     auth_token:        authToken || null,
@@ -51,6 +53,8 @@ async function register(req, res, next) {
       email: email.toLowerCase().trim(),
       phone: phone || null,
       profile_image_url: null,
+      latitude: null,
+      longitude: null,
       created_at: new Date().toISOString().split('.')[0] + 'Z'
     };
 
@@ -78,6 +82,8 @@ async function login(req, res, next) {
       email: email.toLowerCase().trim(),
       phone: "08123456789",
       profile_image_url: null,
+      latitude: null,
+      longitude: null,
       created_at: new Date().toISOString().split('.')[0] + 'Z'
     };
     
@@ -102,7 +108,7 @@ async function logout(req, res) {
 async function getProfile(req, res, next) {
   try {
     const { rows } = await pool.query(
-      `SELECT id, name, email, phone, profile_image_url, created_at
+      `SELECT id, name, email, phone, profile_image_url, latitude, longitude, created_at
        FROM users WHERE id = $1`,
       [req.user.id]
     );
@@ -131,7 +137,7 @@ async function getProfile(req, res, next) {
 
 async function updateProfile(req, res, next) {
   try {
-    const { name, phone, profile_image_url } = req.body;
+    const { name, phone, profile_image_url, latitude, longitude } = req.body;
 
     const fields = [];
     const values = [];
@@ -140,6 +146,8 @@ async function updateProfile(req, res, next) {
     if (name)              { fields.push(`name = $${idx++}`);              values.push(name.trim()); }
     if (phone !== undefined) { fields.push(`phone = $${idx++}`);           values.push(phone || null); }
     if (profile_image_url !== undefined) { fields.push(`profile_image_url = $${idx++}`); values.push(profile_image_url || null); }
+    if (latitude !== undefined) { fields.push(`latitude = $${idx++}`);     values.push(latitude || null); }
+    if (longitude !== undefined) { fields.push(`longitude = $${idx++}`);   values.push(longitude || null); }
 
     if (fields.length === 0) {
       return res.status(400).json({ success: false, error: 'No fields to update.' });
@@ -150,7 +158,7 @@ async function updateProfile(req, res, next) {
 
     const { rows } = await pool.query(
       `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx}
-       RETURNING id, name, email, phone, profile_image_url, created_at`,
+       RETURNING id, name, email, phone, profile_image_url, latitude, longitude, created_at`,
       values
     );
 

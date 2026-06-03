@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash       TEXT NOT NULL,
     phone               VARCHAR(30),
     profile_image_url   TEXT,
+    latitude            DOUBLE PRECISION,
+    longitude           DOUBLE PRECISION,
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
