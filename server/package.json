@@ -14,12 +14,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-<<<<<<< HEAD
-    "geolib": "^3.3.4",
-    "jsonwebtoken": "^9.0.2",
-=======
     "geolib": "^3.3.14",
->>>>>>> cd1b2b80034532064b7a9ad40aa74fdf75f8e15b
+    "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1"
   },
   "engines": {
