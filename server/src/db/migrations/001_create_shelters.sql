@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS shelters (
     latitude                DOUBLE PRECISION NOT NULL,
     longitude               DOUBLE PRECISION NOT NULL,
     capacity                INTEGER NOT NULL DEFAULT 0,
+    available_capacity      INTEGER,
+    contact                 VARCHAR(50),
     facilities              TEXT[] DEFAULT '{}',
     shelter_type            VARCHAR(50) NOT NULL,
     disaster_type_supported TEXT[] DEFAULT '{}',

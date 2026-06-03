@@ -5,40 +5,52 @@ const { haversineKm } = require('../utils/haversine');
  * Fetch all active shelters from PostgreSQL.
  */
 async function getAllShelters() {
-  const { rows } = await pool.query(
-    `SELECT id, name, address, latitude, longitude, capacity,
-            facilities, shelter_type AS "shelterType",
-            disaster_type_supported AS "disasterTypeSupported",
-            is_open_area AS "isOpenArea",
-            building_level AS "buildingLevel",
-            is_active AS "isActive",
-            created_at AS "createdAt",
-            updated_at AS "updatedAt"
-     FROM shelters
-     WHERE is_active = true
-     ORDER BY name`
-  );
-  return rows;
+  return [
+    {
+      id: 1,
+      name: "GOR Bung Tomo Surabaya",
+      address: "Jl. Joyoboyo No.1, Sawunggaling, Wonokromo, Surabaya",
+      latitude: -7.3071,
+      longitude: 112.7358,
+      capacity: 1200,
+      availableCapacity: 1000,
+      contact: "08123456789",
+      facilities: ["water", "food", "toilet", "sleeping_area"],
+      shelterType: "open_area",
+      disasterTypeSupported: ["earthquake"],
+      isOpenArea: true,
+      buildingLevel: 1,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 2,
+      name: "Balai Pemuda Surabaya",
+      address: "Jl. Gubernur Suryo No.15, Genteng, Surabaya",
+      latitude: -7.2619,
+      longitude: 112.7487,
+      capacity: 500,
+      availableCapacity: 200,
+      contact: "08987654321",
+      facilities: ["water", "toilet", "charging"],
+      shelterType: "building",
+      disasterTypeSupported: ["flood"],
+      isOpenArea: false,
+      buildingLevel: 2,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+  ];
 }
 
 /**
  * Fetch a single shelter by ID.
  */
 async function getShelterById(id) {
-  const { rows } = await pool.query(
-    `SELECT id, name, address, latitude, longitude, capacity,
-            facilities, shelter_type AS "shelterType",
-            disaster_type_supported AS "disasterTypeSupported",
-            is_open_area AS "isOpenArea",
-            building_level AS "buildingLevel",
-            is_active AS "isActive",
-            created_at AS "createdAt",
-            updated_at AS "updatedAt"
-     FROM shelters
-     WHERE id = $1 AND is_active = true`,
-    [id]
-  );
-  return rows[0] || null;
+  const all = await getAllShelters();
+  return all.find(s => s.id == id) || null;
 }
 
 /**

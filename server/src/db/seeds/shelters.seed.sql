@@ -1,13 +1,13 @@
 -- SafePath — Surabaya shelter seed data matching the new schema
 -- Run: psql -d safepath_db -f shelters.seed.sql
 
-INSERT INTO shelters (name, address, latitude, longitude, capacity, facilities, shelter_type, disaster_type_supported, is_open_area, building_level, is_active) VALUES
+INSERT INTO shelters (name, address, latitude, longitude, capacity, available_capacity, contact, facilities, shelter_type, disaster_type_supported, is_open_area, building_level, is_active) VALUES
 
 -- 1. Universitas Airlangga Kampus C Evacuation Hall
 ('Universitas Airlangga Kampus C',
  'Mulyorejo, Surabaya',
  -7.2677, 112.7847,
- 800, ARRAY['Toilet', 'Air Bersih', 'Area Parkir'],
+ 800, 750, '081234567890', ARRAY['Toilet', 'Air Bersih', 'Area Parkir'],
  'building', ARRAY['flood', 'earthquake'],
  false, 3, true),
 
@@ -15,7 +15,7 @@ INSERT INTO shelters (name, address, latitude, longitude, capacity, facilities, 
 ('GOR Bung Tomo',
  'Benowo, Surabaya',
  -7.2239, 112.6081,
- 1200, ARRAY['Toilet', 'Area Luas', 'Parkir'],
+ 1200, 1100, '081234567891', ARRAY['Toilet', 'Area Luas', 'Parkir'],
  'open_area', ARRAY['earthquake'],
  true, 1, true),
 
@@ -23,7 +23,7 @@ INSERT INTO shelters (name, address, latitude, longitude, capacity, facilities, 
 ('Balai Pemuda Surabaya',
  'Jl. Gubernur Suryo, Surabaya',
  -7.2634, 112.7445,
- 500, ARRAY['Toilet', 'Ruang Aula', 'Listrik'],
+ 500, 400, '081234567892', ARRAY['Toilet', 'Ruang Aula', 'Listrik'],
  'building', ARRAY['flood'],
  false, 2, true),
 
@@ -31,7 +31,7 @@ INSERT INTO shelters (name, address, latitude, longitude, capacity, facilities, 
 ('Gedung Robotika ITS',
  'Sukolilo, Surabaya',
  -7.2819, 112.7952,
- 700, ARRAY['Toilet', 'Listrik', 'Ruang Besar'],
+ 700, 650, '081234567893', ARRAY['Toilet', 'Listrik', 'Ruang Besar'],
  'building', ARRAY['flood', 'earthquake'],
  false, 2, true),
 
@@ -39,7 +39,7 @@ INSERT INTO shelters (name, address, latitude, longitude, capacity, facilities, 
 ('RSUD Dr. Soetomo',
  'Jl. Mayjen Prof. Dr. Moestopo, Surabaya',
  -7.2672, 112.7584,
- 300, ARRAY['Medis', 'Toilet', 'Listrik'],
+ 300, 50, '081234567894', ARRAY['Medis', 'Toilet', 'Listrik'],
  'building', ARRAY['flood', 'earthquake'],
  false, 4, true),
 
@@ -47,7 +47,7 @@ INSERT INTO shelters (name, address, latitude, longitude, capacity, facilities, 
 ('Lapangan Thor',
  'Jl. Padmosusastro, Surabaya',
  -7.2896, 112.7341,
- 900, ARRAY['Area Terbuka', 'Titik Kumpul'],
+ 900, 900, '081234567895', ARRAY['Area Terbuka', 'Titik Kumpul'],
  'open_area', ARRAY['earthquake'],
  true, 0, true),
 
@@ -55,7 +55,7 @@ INSERT INTO shelters (name, address, latitude, longitude, capacity, facilities, 
 ('Taman Bungkul',
  'Jl. Taman Bungkul, Surabaya',
  -7.2913, 112.7398,
- 400, ARRAY['Area Terbuka', 'Toilet'],
+ 400, 350, '081234567896', ARRAY['Area Terbuka', 'Toilet'],
  'open_area', ARRAY['earthquake'],
  true, 0, true),
 
@@ -63,7 +63,7 @@ INSERT INTO shelters (name, address, latitude, longitude, capacity, facilities, 
 ('Convention Hall Surabaya',
  'Surabaya',
  -7.2810, 112.7420,
- 1000, ARRAY['Ruang Besar', 'Listrik', 'Parkir'],
+ 1000, 950, '081234567897', ARRAY['Ruang Besar', 'Listrik', 'Parkir'],
  'vertical_shelter', ARRAY['tsunami', 'flood'],
  false, 5, true);
 
