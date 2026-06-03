@@ -64,4 +64,37 @@ async function getNearbyAlerts(req, res, next) {
   }
 }
 
-module.exports = { getAllAlerts, getNearbyAlerts };
+/**
+ * POST /api/disaster-alert/trigger
+ * Simulates triggering a push notification to users.
+ */
+async function triggerAlert(req, res, next) {
+  try {
+    // In a real app, you would integrate with FCM (Firebase Cloud Messaging), APNs, or OneSignal here.
+    const { title, body, type, priority, deep_link_action } = req.body;
+    
+    const notificationPayload = {
+      id: require('crypto').randomUUID(),
+      title: title || 'Flood Warning',
+      body: body || 'A Flood alert has been issued in your area. Tap here to view the preparation guide and checklist.',
+      type: type || 'prep_guide',
+      priority: priority || 'high',
+      deep_link_action: deep_link_action || 'open_prep_guide',
+      is_read: false,
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('[PUSH NOTIFICATION SIMULATION] Sending Alert:');
+    console.log(JSON.stringify(notificationPayload, null, 2));
+
+    res.status(200).json({
+      success: true,
+      message: 'Push notification simulated successfully.',
+      simulatedPayload: notificationPayload
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getAllAlerts, getNearbyAlerts, triggerAlert };
