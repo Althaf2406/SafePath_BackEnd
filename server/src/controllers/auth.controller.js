@@ -19,8 +19,8 @@ function formatUser(row, authToken = null) {
     email:             row.email,
     phone:             row.phone || null,
     profile_image_url: row.profile_image_url || null,
-    latitude:          row.latitude || null,
-    longitude:         row.longitude || null,
+    last_latitude:     row.latitude || null,
+    last_longitude:    row.longitude || null,
     created_at:        row.created_at,
     family_group_ids:  [],
     auth_token:        authToken || null,
@@ -108,7 +108,7 @@ async function logout(req, res) {
 async function getProfile(req, res, next) {
   try {
     const { rows } = await pool.query(
-      `SELECT id, name, email, phone, profile_image_url, latitude, longitude, created_at
+      `SELECT id, name, email, phone, profile_image_url, latitude, longitude, password_hash, created_at
        FROM users WHERE id = $1`,
       [req.user.id]
     );
