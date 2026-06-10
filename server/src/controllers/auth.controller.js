@@ -1,10 +1,13 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const pool = require('../config/db');
+// const pool = require('../config/db'); // Database call disabled for mock
 const { JWT_SECRET } = require('../middleware/auth.middleware');
 
 const SALT_ROUNDS = 12;
 const TOKEN_EXPIRY = '7d';
+
+// ── Mock Database ─────────────────────────────────────────────────────────────
+const mockUsers = [];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -14,17 +17,24 @@ const TOKEN_EXPIRY = '7d';
  */
 function formatUser(row, authToken = null) {
   return {
-    id:                String(row.id),
-    name:              row.name,
-    email:             row.email,
-    phone:             row.phone || null,
-    profile_image_url: row.profile_image_url || null,
-    last_latitude:     row.latitude || null,
-    last_longitude:    row.longitude || null,
-    created_at:        row.created_at,
-    family_group_ids:  [],
-    auth_token:        authToken || null,
-    refresh_token:     null,
+    id:                      String(row.id),
+    name:                    row.name,
+    email:                   row.email,
+    phone:                   row.phone || null,
+    profile_image_url:       row.profile_image_url || null,
+    blood_type:              row.blood_type || null,
+    medical_conditions:      row.medical_conditions || null,
+    emergency_contact_name:  row.emergency_contact_name || null,
+    emergency_contact_phone: row.emergency_contact_phone || null,
+    last_latitude:           row.latitude || null,
+    last_longitude:          row.longitude || null,
+    location_updated_at:     row.location_updated_at || null,
+    device_token:            row.device_token || null,
+    preferences:             row.preferences || null,
+    created_at:              row.created_at,
+    family_group_ids:        row.family_group_ids || [],
+    auth_token:              authToken || null,
+    refresh_token:           null,
   };
 }
 
@@ -46,20 +56,41 @@ async function register(req, res, next) {
       return res.status(400).json({ success: false, error: 'name, email, and password are required.' });
     }
 
-    // Mock successful registration
-    const mockUser = {
-      id: Math.floor(Math.random() * 1000) + 1,
+    const emailLower = email.toLowerCase().trim();
+
+    // Check if email already exists
+    const existingUser = mockUsers.find(u => u.email === emailLower);
+    if (existingUser) {
+      return res.status(400).json({ success: false, error: 'Email already in use.' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+    // Create user
+    const newUser = {
+      id: String(Date.now()), // Simple mock ID
       name: name.trim(),
-      email: email.toLowerCase().trim(),
+      email: emailLower,
+      password_hash: hashedPassword,
       phone: phone || null,
       profile_image_url: null,
+      blood_type: null,
+      medical_conditions: null,
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
       latitude: null,
       longitude: null,
-      created_at: new Date().toISOString().split('.')[0] + 'Z'
+      location_updated_at: null,
+      device_token: null,
+      preferences: null,
+      created_at: new Date().toISOString().split('.')[0] + "Z"
     };
+    
+    mockUsers.push(newUser);
 
-    const token = signToken(mockUser);
-    res.status(201).json(formatUser(mockUser, token));
+    const token = signToken(newUser);
+    res.status(201).json(formatUser(newUser, token));
   } catch (err) {
     next(err);
   }
@@ -75,21 +106,21 @@ async function login(req, res, next) {
       return res.status(400).json({ success: false, error: 'email and password are required.' });
     }
 
-    // Mock successful login for frontend testing
-    const mockUser = {
-      id: 1,
-      name: "Mock Admin",
-      email: email.toLowerCase().trim(),
-      phone: "08123456789",
-      profile_image_url: null,
-      latitude: null,
-      longitude: null,
-      created_at: new Date().toISOString().split('.')[0] + 'Z'
-    };
+    // Find user
+    const user = mockUsers.find(u => u.email === email.toLowerCase().trim());
+
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Invalid credentials.' });
+    }
+
+    // Check password
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, error: 'Invalid credentials.' });
+    }
     
-    // We don't check password for mock
-    const token = signToken(mockUser);
-    res.json(formatUser(mockUser, token));
+    const token = signToken(user);
+    res.json(formatUser(user, token));
   } catch (err) {
     next(err);
   }
@@ -99,7 +130,6 @@ async function login(req, res, next) {
 
 async function logout(req, res) {
   // JWT is stateless — client simply discards the token.
-  // Future: add token to a denylist table here.
   res.status(204).send();
 }
 
@@ -107,26 +137,13 @@ async function logout(req, res) {
 
 async function getProfile(req, res, next) {
   try {
-    const { rows } = await pool.query(
-      `SELECT id, name, email, phone, profile_image_url, latitude, longitude, password_hash, created_at
-       FROM users WHERE id = $1`,
-      [req.user.id]
-    );
+    const user = mockUsers.find(u => u.id === String(req.user.id));
 
-    if (rows.length === 0) {
+    if (!user) {
       return res.status(404).json({ success: false, error: 'User not found.' });
     }
 
-    // Fetch all family group IDs for this user
-    const groupRows = await pool.query(
-      `SELECT group_id FROM family_members WHERE user_id = $1`,
-      [req.user.id]
-    );
-    const familyGroupIds = groupRows.rows.map((r) => r.group_id);
-
-    const formatted = formatUser(rows[0]);
-    formatted.family_group_ids = familyGroupIds;
-
+    const formatted = formatUser(user);
     res.json(formatted);
   } catch (err) {
     next(err);
@@ -137,36 +154,54 @@ async function getProfile(req, res, next) {
 
 async function updateProfile(req, res, next) {
   try {
-    const { name, phone, profile_image_url, latitude, longitude } = req.body;
+    const { 
+      name, phone, profile_image_url, latitude, longitude,
+      blood_type, medical_conditions, emergency_contact_name, emergency_contact_phone, device_token,
+      preferences
+    } = req.body;
 
-    const fields = [];
-    const values = [];
-    let idx = 1;
+    const userIndex = mockUsers.findIndex(u => u.id === String(req.user.id));
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ success: false, error: 'User not found.' });
+    }
+    
+    const user = mockUsers[userIndex];
+    let hasChanges = false;
+    let isLocationUpdated = false;
 
-    if (name)              { fields.push(`name = $${idx++}`);              values.push(name.trim()); }
-    if (phone !== undefined) { fields.push(`phone = $${idx++}`);           values.push(phone || null); }
-    if (profile_image_url !== undefined) { fields.push(`profile_image_url = $${idx++}`); values.push(profile_image_url || null); }
-    if (latitude !== undefined) { fields.push(`latitude = $${idx++}`);     values.push(latitude || null); }
-    if (longitude !== undefined) { fields.push(`longitude = $${idx++}`);   values.push(longitude || null); }
+    if (name)              { user.name = name.trim(); hasChanges = true; }
+    if (phone !== undefined) { user.phone = phone || null; hasChanges = true; }
+    if (profile_image_url !== undefined) { user.profile_image_url = profile_image_url || null; hasChanges = true; }
+    if (blood_type !== undefined) { user.blood_type = blood_type || null; hasChanges = true; }
+    if (medical_conditions !== undefined) { user.medical_conditions = medical_conditions || null; hasChanges = true; }
+    if (emergency_contact_name !== undefined) { user.emergency_contact_name = emergency_contact_name || null; hasChanges = true; }
+    if (emergency_contact_phone !== undefined) { user.emergency_contact_phone = emergency_contact_phone || null; hasChanges = true; }
+    if (device_token !== undefined) { user.device_token = device_token || null; hasChanges = true; }
+    if (preferences !== undefined) { user.preferences = preferences; hasChanges = true; }
+    
+    if (latitude !== undefined) { 
+      user.latitude = latitude || null; 
+      isLocationUpdated = true;
+      hasChanges = true;
+    }
+    if (longitude !== undefined) { 
+      user.longitude = longitude || null; 
+      isLocationUpdated = true;
+      hasChanges = true;
+    }
 
-    if (fields.length === 0) {
+    if (isLocationUpdated) {
+      user.location_updated_at = new Date().toISOString();
+    }
+
+    if (!hasChanges) {
       return res.status(400).json({ success: false, error: 'No fields to update.' });
     }
 
-    fields.push(`updated_at = NOW()`);
-    values.push(req.user.id);
-
-    const { rows } = await pool.query(
-      `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx}
-       RETURNING id, name, email, phone, profile_image_url, latitude, longitude, created_at`,
-      values
-    );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'User not found.' });
-    }
-
-    res.json(formatUser(rows[0]));
+    user.updated_at = new Date().toISOString();
+    
+    res.json(formatUser(user));
   } catch (err) {
     next(err);
   }

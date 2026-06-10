@@ -15,13 +15,13 @@ const NODE_MODULES = path.join(__dirname, 'node_modules');
 
 // Packages to install: [name, version]
 const PACKAGES = [
-  ['bcryptjs',     '2.4.3'],
+  ['bcryptjs', '2.4.3'],
   ['jsonwebtoken', '9.0.2'],
-  ['jws',          '3.2.2'],
-  ['jwa',          '1.4.1'],
-  ['safe-buffer',  '5.2.1'],
+  ['jws', '3.2.2'],
+  ['jwa', '1.4.1'],
+  ['safe-buffer', '5.2.1'],
   ['ecdsa-sig-formatter', '1.0.11'],
-  ['geolib',       '3.3.4'],
+  ['geolib', '3.3.4'],
 ];
 
 function download(url) {
