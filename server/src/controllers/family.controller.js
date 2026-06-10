@@ -305,11 +305,114 @@ async function fetchFamilyLocations(req, res, next) {
   }
 }
 
+// ── POST /api/family/join ─────────────────────────────────────────────────────
+
+async function joinGroupByCode(req, res, next) {
+  try {
+    const { invite_code } = req.body;
+    if (!invite_code || !invite_code.trim()) {
+      return res.status(400).json({ success: false, error: 'invite_code is required.' });
+    }
+
+    // Find group by invite code
+    const { rows: groupRows } = await pool.query(
+      'SELECT * FROM family_groups WHERE invite_code = $1 AND is_active = true',
+      [invite_code.trim().toUpperCase()]
+    );
+    if (groupRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Invalid or expired invite code.' });
+    }
+    const group = groupRows[0];
+
+    // Check if user is already a member
+    const existingMember = await pool.query(
+      'SELECT id FROM family_members WHERE group_id = $1 AND user_id = $2',
+      [group.id, req.user.id]
+    );
+    if (existingMember.rows.length > 0) {
+      return res.status(409).json({ success: false, error: 'You are already a member of this group.' });
+    }
+
+    // Check capacity
+    const countRes = await pool.query(
+      'SELECT COUNT(*) FROM family_members WHERE group_id = $1', [group.id]
+    );
+    if (parseInt(countRes.rows[0].count) >= group.max_members) {
+      return res.status(409).json({ success: false, error: 'This family group is full.' });
+    }
+
+    // Add user as member
+    await pool.query(
+      `INSERT INTO family_members (group_id, user_id, role)
+       VALUES ($1, $2, 'member')
+       ON CONFLICT (group_id, user_id) DO NOTHING`,
+      [group.id, req.user.id]
+    );
+
+    // Return full group details
+    res.status(201).json(await buildGroupResponse(group));
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── DELETE /api/family/group/:groupID/leave ────────────────────────────────────
+
+async function leaveGroup(req, res, next) {
+  try {
+    const { groupID } = req.params;
+    const userID = req.user.id;
+
+    // Find the user's membership record
+    const { rows: memberRows } = await pool.query(
+      `SELECT id, role FROM family_members WHERE group_id = $1 AND user_id = $2`,
+      [groupID, userID]
+    );
+    if (memberRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'You are not a member of this group.' });
+    }
+    const membership = memberRows[0];
+
+    // If admin, transfer role or deactivate group
+    if (membership.role === 'admin') {
+      const { rows: otherMembers } = await pool.query(
+        `SELECT id FROM family_members WHERE group_id = $1 AND user_id != $2 ORDER BY joined_at ASC LIMIT 1`,
+        [groupID, userID]
+      );
+      if (otherMembers.length > 0) {
+        // Transfer admin role to the next oldest member
+        await pool.query(
+          `UPDATE family_members SET role = 'admin' WHERE id = $1`,
+          [otherMembers[0].id]
+        );
+      } else {
+        // No other members — deactivate the group
+        await pool.query(
+          `UPDATE family_groups SET is_active = false WHERE id = $1`,
+          [groupID]
+        );
+      }
+    }
+
+    // Remove current user from the group
+    await pool.query(
+      `DELETE FROM family_members WHERE group_id = $1 AND user_id = $2`,
+      [groupID, userID]
+    );
+
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createGroup,
   fetchGroup,
   fetchAllGroups,
   inviteMember,
+  joinGroupByCode,
+  leaveGroup,
   removeMember,
   updateMemberStatus,
   shareLocation,

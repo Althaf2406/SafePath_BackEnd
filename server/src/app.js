@@ -39,9 +39,9 @@ app.use('/api/shelters',          shelterRoutes);
 app.use('/api/weather-alert',     weatherRoutes);
 app.use('/api/evacuation-route',  routeRoutes);
 // app.use('/api/items',          itemRoutes);
-app.use('/api/local-risk-profile', localRiskRoutes);
+app.use('/api/preparedness/risk-profiles', localRiskRoutes);
 app.use('/api/first-aid',          firstAidRoutes);
-app.use('/api/checklist/custom',   checklistRoutes);
+app.use('/api/item',               checklistRoutes);
 app.use('/api/disaster-guides',    disasterGuideRoutes);
 
 // ── Person 2: Auth / Family / Emergency ─────────────────────────────────────

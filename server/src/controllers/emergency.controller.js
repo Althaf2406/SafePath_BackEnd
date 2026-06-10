@@ -9,6 +9,7 @@ function formatStatus(row) {
   return {
     id:               row.id,
     user_id:          row.user_id,
+    user_name:        row.user_name || null,
     status:           row.status,
     message:          row.message || null,
     latitude:         row.latitude || null,
@@ -54,15 +55,6 @@ async function updateStatus(req, res, next) {
       `INSERT INTO emergency_statuses
          (user_id, status, message, latitude, longitude, is_sos, escalation_level, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-       ON CONFLICT (user_id) DO UPDATE SET
-         status           = EXCLUDED.status,
-         message          = EXCLUDED.message,
-         latitude         = EXCLUDED.latitude,
-         longitude        = EXCLUDED.longitude,
-         is_sos           = EXCLUDED.is_sos,
-         escalation_level = EXCLUDED.escalation_level,
-         resolved_at      = NULL,
-         updated_at       = NOW()
        RETURNING *`,
       [req.user.id, status, message || null, latitude || null, longitude || null, isSOS, escalationLevel]
     );
@@ -105,11 +97,13 @@ async function fetchStatus(req, res, next) {
 async function fetchFamilyStatuses(req, res, next) {
   try {
     const { rows } = await pool.query(
-      `SELECT es.*
+      `SELECT es.*, u.name as user_name
        FROM emergency_statuses es
        JOIN family_members fm ON fm.user_id = es.user_id
+       JOIN users u ON es.user_id = u.id
        WHERE fm.group_id = $1
-       ORDER BY es.updated_at DESC`,
+       ORDER BY es.updated_at DESC
+       LIMIT 50`,
       [req.params.groupID]
     );
 
@@ -129,15 +123,6 @@ async function triggerSOS(req, res, next) {
       `INSERT INTO emergency_statuses
          (user_id, status, message, latitude, longitude, is_sos, escalation_level, updated_at)
        VALUES ($1, 'sos', $2, $3, $4, true, 3, NOW())
-       ON CONFLICT (user_id) DO UPDATE SET
-         status           = 'sos',
-         message          = EXCLUDED.message,
-         latitude         = EXCLUDED.latitude,
-         longitude        = EXCLUDED.longitude,
-         is_sos           = true,
-         escalation_level = 3,
-         resolved_at      = NULL,
-         updated_at       = NOW()
        RETURNING *`,
       [req.user.id, message || 'SOS triggered — immediate assistance needed.', latitude || null, longitude || null]
     );

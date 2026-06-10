@@ -61,8 +61,46 @@ async function deleteChecklistItem(userId, id) {
   return rowCount > 0;
 }
 
+/**
+ * Update a checklist item by ID for a specific user.
+ */
+async function updateChecklistItem(userId, id, data) {
+  const {
+    name,
+    isChecked,
+    category,
+    quantity,
+    priority,
+    disasterType
+  } = data;
+
+  const { rows } = await pool.query(
+    `UPDATE custom_checklists
+     SET
+       name          = COALESCE($1, name),
+       is_checked    = COALESCE($2, is_checked),
+       category      = COALESCE($3, category),
+       quantity      = COALESCE($4, quantity),
+       priority      = COALESCE($5, priority),
+       disaster_type = COALESCE($6, disaster_type),
+       updated_at    = NOW()
+     WHERE id = $7 AND user_id = $8
+     RETURNING
+       id,
+       name,
+       is_checked    AS "isChecked",
+       category,
+       quantity,
+       priority,
+       disaster_type AS "disasterType"`,
+    [name ?? null, isChecked ?? null, category ?? null, quantity ?? null, priority ?? null, disasterType ?? null, id, userId]
+  );
+  return rows[0] || null;
+}
+
 module.exports = {
   getUserChecklists,
   createChecklistItem,
-  deleteChecklistItem
+  deleteChecklistItem,
+  updateChecklistItem
 };

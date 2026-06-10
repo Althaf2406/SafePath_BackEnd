@@ -1,21 +1,21 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-// const pool = require('../config/db'); // Database call disabled for mock
+const pool = require('../config/db');
 const { JWT_SECRET } = require('../middleware/auth.middleware');
 
 const SALT_ROUNDS = 12;
 const TOKEN_EXPIRY = '7d';
 
-// ── Mock Database ─────────────────────────────────────────────────────────────
-const mockUsers = [];
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * Format a users row into the User shape the iOS app expects.
- * Includes auth_token when provided.
- */
-function formatUser(row, authToken = null) {
+async function formatUser(row, authToken = null) {
+  // Fetch the groups this user actually belongs to from family_members
+  const { rows: groupRows } = await pool.query(
+    `SELECT DISTINCT group_id FROM family_members WHERE user_id = $1`,
+    [row.id]
+  );
+  const familyGroupIds = groupRows.map(r => String(r.group_id));
+
   return {
     id:                      String(row.id),
     name:                    row.name,
@@ -32,7 +32,7 @@ function formatUser(row, authToken = null) {
     device_token:            row.device_token || null,
     preferences:             row.preferences || null,
     created_at:              row.created_at,
-    family_group_ids:        row.family_group_ids || [],
+    family_group_ids:        familyGroupIds,
     auth_token:              authToken || null,
     refresh_token:           null,
   };
@@ -59,38 +59,26 @@ async function register(req, res, next) {
     const emailLower = email.toLowerCase().trim();
 
     // Check if email already exists
-    const existingUser = mockUsers.find(u => u.email === emailLower);
-    if (existingUser) {
+    const checkRes = await pool.query('SELECT id FROM users WHERE email = $1', [emailLower]);
+    if (checkRes.rows.length > 0) {
       return res.status(400).json({ success: false, error: 'Email already in use.' });
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // Create user
-    const newUser = {
-      id: String(Date.now()), // Simple mock ID
-      name: name.trim(),
-      email: emailLower,
-      password_hash: hashedPassword,
-      phone: phone || null,
-      profile_image_url: null,
-      blood_type: null,
-      medical_conditions: null,
-      emergency_contact_name: null,
-      emergency_contact_phone: null,
-      latitude: null,
-      longitude: null,
-      location_updated_at: null,
-      device_token: null,
-      preferences: null,
-      created_at: new Date().toISOString().split('.')[0] + "Z"
-    };
-    
-    mockUsers.push(newUser);
+    // Create user in Postgres
+    const insertRes = await pool.query(
+      `INSERT INTO users (name, email, password_hash, phone)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [name.trim(), emailLower, hashedPassword, phone || null]
+    );
 
+    const newUser = insertRes.rows[0];
     const token = signToken(newUser);
-    res.status(201).json(formatUser(newUser, token));
+    
+    res.status(201).json(await formatUser(newUser, token));
   } catch (err) {
     next(err);
   }
@@ -106,21 +94,20 @@ async function login(req, res, next) {
       return res.status(400).json({ success: false, error: 'email and password are required.' });
     }
 
-    // Find user
-    const user = mockUsers.find(u => u.email === email.toLowerCase().trim());
-
-    if (!user) {
+    const userRes = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
+    
+    if (userRes.rows.length === 0) {
       return res.status(401).json({ success: false, error: 'Invalid credentials.' });
     }
 
-    // Check password
+    const user = userRes.rows[0];
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({ success: false, error: 'Invalid credentials.' });
     }
     
     const token = signToken(user);
-    res.json(formatUser(user, token));
+    res.json(await formatUser(user, token));
   } catch (err) {
     next(err);
   }
@@ -129,7 +116,6 @@ async function login(req, res, next) {
 // ── POST /api/auth/logout ─────────────────────────────────────────────────────
 
 async function logout(req, res) {
-  // JWT is stateless — client simply discards the token.
   res.status(204).send();
 }
 
@@ -137,14 +123,13 @@ async function logout(req, res) {
 
 async function getProfile(req, res, next) {
   try {
-    const user = mockUsers.find(u => u.id === String(req.user.id));
+    const userRes = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
 
-    if (!user) {
+    if (userRes.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'User not found.' });
     }
 
-    const formatted = formatUser(user);
-    res.json(formatted);
+    res.json(await formatUser(userRes.rows[0]));
   } catch (err) {
     next(err);
   }
@@ -155,53 +140,29 @@ async function getProfile(req, res, next) {
 async function updateProfile(req, res, next) {
   try {
     const { 
-      name, phone, profile_image_url, latitude, longitude,
-      blood_type, medical_conditions, emergency_contact_name, emergency_contact_phone, device_token,
-      preferences
+      name, phone, profile_image_url, latitude, longitude
     } = req.body;
 
-    const userIndex = mockUsers.findIndex(u => u.id === String(req.user.id));
-    
-    if (userIndex === -1) {
+    // First check if user exists
+    const userRes = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    if (userRes.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'User not found.' });
     }
-    
-    const user = mockUsers[userIndex];
-    let hasChanges = false;
-    let isLocationUpdated = false;
 
-    if (name)              { user.name = name.trim(); hasChanges = true; }
-    if (phone !== undefined) { user.phone = phone || null; hasChanges = true; }
-    if (profile_image_url !== undefined) { user.profile_image_url = profile_image_url || null; hasChanges = true; }
-    if (blood_type !== undefined) { user.blood_type = blood_type || null; hasChanges = true; }
-    if (medical_conditions !== undefined) { user.medical_conditions = medical_conditions || null; hasChanges = true; }
-    if (emergency_contact_name !== undefined) { user.emergency_contact_name = emergency_contact_name || null; hasChanges = true; }
-    if (emergency_contact_phone !== undefined) { user.emergency_contact_phone = emergency_contact_phone || null; hasChanges = true; }
-    if (device_token !== undefined) { user.device_token = device_token || null; hasChanges = true; }
-    if (preferences !== undefined) { user.preferences = preferences; hasChanges = true; }
-    
-    if (latitude !== undefined) { 
-      user.latitude = latitude || null; 
-      isLocationUpdated = true;
-      hasChanges = true;
-    }
-    if (longitude !== undefined) { 
-      user.longitude = longitude || null; 
-      isLocationUpdated = true;
-      hasChanges = true;
-    }
+    const updateRes = await pool.query(
+      `UPDATE users 
+       SET name = COALESCE($1, name),
+           phone = COALESCE($2, phone),
+           profile_image_url = COALESCE($3, profile_image_url),
+           latitude = COALESCE($4, latitude),
+           longitude = COALESCE($5, longitude),
+           updated_at = NOW()
+       WHERE id = $6
+       RETURNING *`,
+      [name, phone, profile_image_url, latitude, longitude, req.user.id]
+    );
 
-    if (isLocationUpdated) {
-      user.location_updated_at = new Date().toISOString();
-    }
-
-    if (!hasChanges) {
-      return res.status(400).json({ success: false, error: 'No fields to update.' });
-    }
-
-    user.updated_at = new Date().toISOString();
-    
-    res.json(formatUser(user));
+    res.json(await formatUser(updateRes.rows[0]));
   } catch (err) {
     next(err);
   }

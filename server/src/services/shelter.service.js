@@ -5,44 +5,25 @@ const { haversineKm } = require('../utils/haversine');
  * Fetch all active shelters from PostgreSQL.
  */
 async function getAllShelters() {
-  return [
-    {
-      id: 1,
-      name: "GOR Bung Tomo Surabaya",
-      address: "Jl. Joyoboyo No.1, Sawunggaling, Wonokromo, Surabaya",
-      latitude: -7.3071,
-      longitude: 112.7358,
-      capacity: 1200,
-      availableCapacity: 1000,
-      contact: "08123456789",
-      facilities: ["water", "food", "toilet", "sleeping_area"],
-      shelterType: "open_area",
-      disasterTypeSupported: ["earthquake"],
-      isOpenArea: true,
-      buildingLevel: 1,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 2,
-      name: "Balai Pemuda Surabaya",
-      address: "Jl. Gubernur Suryo No.15, Genteng, Surabaya",
-      latitude: -7.2619,
-      longitude: 112.7487,
-      capacity: 500,
-      availableCapacity: 200,
-      contact: "08987654321",
-      facilities: ["water", "toilet", "charging"],
-      shelterType: "building",
-      disasterTypeSupported: ["flood"],
-      isOpenArea: false,
-      buildingLevel: 2,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-  ];
+  const { rows } = await pool.query('SELECT * FROM shelters WHERE is_active = true');
+  return rows.map(row => ({
+    id: row.id,
+    name: row.name,
+    address: row.address,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    capacity: row.capacity,
+    availableCapacity: row.available_capacity,
+    contact: row.contact,
+    facilities: row.facilities || [],
+    shelterType: row.shelter_type,
+    disasterTypeSupported: row.disaster_type_supported || [],
+    isOpenArea: row.is_open_area,
+    buildingLevel: row.building_level,
+    isActive: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }));
 }
 
 /**
