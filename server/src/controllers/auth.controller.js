@@ -140,7 +140,9 @@ async function getProfile(req, res, next) {
 async function updateProfile(req, res, next) {
   try {
     const { 
-      name, phone, profile_image_url, latitude, longitude
+      name, phone, profile_image_url, latitude, longitude,
+      emergency_contact_name, emergency_contact_phone,
+      blood_type, medical_conditions, preferences, device_token
     } = req.body;
 
     // First check if user exists
@@ -156,10 +158,21 @@ async function updateProfile(req, res, next) {
            profile_image_url = COALESCE($3, profile_image_url),
            latitude = COALESCE($4, latitude),
            longitude = COALESCE($5, longitude),
+           emergency_contact_name = COALESCE($6, emergency_contact_name),
+           emergency_contact_phone = COALESCE($7, emergency_contact_phone),
+           blood_type = COALESCE($8, blood_type),
+           medical_conditions = COALESCE($9, medical_conditions),
+           preferences = COALESCE($10, preferences),
+           device_token = COALESCE($11, device_token),
            updated_at = NOW()
-       WHERE id = $6
+       WHERE id = $12
        RETURNING *`,
-      [name, phone, profile_image_url, latitude, longitude, req.user.id]
+      [
+        name, phone, profile_image_url, latitude, longitude,
+        emergency_contact_name, emergency_contact_phone,
+        blood_type, medical_conditions, preferences, device_token,
+        req.user.id
+      ]
     );
 
     res.json(await formatUser(updateRes.rows[0]));
